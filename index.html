@@ -1,1109 +1,734 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>控制台</title>
-    <!-- Vanta粒子背景依赖 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
-    <!-- 在线表格 x-spreadsheet 开源库 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/x-spreadsheet@0.9.8/dist/xspreadsheet.css">
-    <script src="https://cdn.jsdelivr.net/npm/x-spreadsheet@0.9.8/dist/xspreadsheet.js"></script>
-    <!-- Vue.js -->
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: "Microsoft Yahei", system-ui, sans-serif;
-        }
-
-        body {
-            min-height: 100vh;
-            padding: 24px;
-            color: #ffffff;
-            overflow-x: hidden;
-            position: relative;
-        }
-
-        #vanta-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -2;
-        }
-
-        .bg-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -1;
-            background: rgba(0, 0, 0, 0.12);
-            pointer-events: none;
-        }
-
-        .page-wrap {
-            display: grid;
-            gap: 20px;
-            grid-template-columns: 240px 1fr 260px;
-            grid-template-rows: auto 1fr;
-            grid-template-areas:
-                "left top-right stat"
-                "left mid-double right-long";
-            max-width: 1600px;
-            margin: 0 auto;
-            height: calc(100vh - 48px);
-            position: relative;
-            z-index: 1;
-        }
-
-        .card {
-            background: rgba(255, 255, 255, 0.16);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.28);
-            padding: 22px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* ===== 左侧栏 ===== */
-        .card-left {
-            grid-area: left;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 18px;
-        }
-
-        .clock-box {
-            width: 100%;
-            padding: 8px 0;
-            text-align: center;
-        }
-
-        .clock-time {
-            font-size: 32px;
-            font-weight: 800;
-            color: #ffffff;
-            letter-spacing: 1px;
-            font-style: italic;
-            font-family: 'Courier New', monospace;
-        }
-
-        .clock-date {
-            font-size: 14px;
-            margin-top: 6px;
-            color: rgba(255, 255, 255, 0.75);
-            font-style: italic;
-        }
-
-        .entry-card {
-            width: 100%;
-            padding: 14px 16px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            text-align: center;
-            cursor: pointer;
-            transition: 0.25s;
-            color: #ffffff;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .entry-card:hover {
-            background: rgba(255, 255, 255, 0.24);
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-        }
-
-        .entry-card svg {
-            width: 18px;
-            height: 18px;
-            fill: currentColor;
-        }
-
-        /* 左侧底部状态卡片 */
-        .glass-footer {
-            width: 90%;
-            margin: 10px auto 0;
-            padding: 20px;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            position: relative;
-        }
-
-        .glass-footer::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, #ff4499, #6a82fb, transparent);
-        }
-
-        .footer-header {
-            font-size: 15px;
-            color: #e0e0ff;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 600;
-            letter-spacing: 1px;
-        }
-
-        .status-list {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 18px;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 14px;
-            color: #d0d0e0;
-            padding: 10px 12px;
-            border-radius: 12px;
-            transition: background 0.3s;
-        }
-
-        .status-item:hover {
-            background: rgba(255,255,255,0.05);
-        }
-
-        .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-
-        .dot.online { background-color: #00ff9d; box-shadow: 0 0 10px #00ff9d; }
-        .dot.warning { background-color: #ffcc00; box-shadow: 0 0 10px #ffcc00; }
-        .dot.offline { background-color: #ff4d4d; box-shadow: 0 0 10px #ff4d4d; }
-
-        .footer-tip {
-            font-size: 11px;
-            color: #777;
-            margin-top: 20px;
-            text-align: right;
-            border-top: 1px dashed rgba(255,255,255,0.1);
-            padding-top: 10px;
-        }
-
-        /* ===== 右上：动画新闻速递（核心修改区） ===== */
-        .card-stat {
-            grid-area: stat;
-            padding: 18px !important;
-            position: relative;
-        }
-
-        .news-ticker-container {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .news-header {
-            font-size: 14px;
-            color: rgba(255,255,255,0.7);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .live-badge {
-            background: #ff4499;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
-        }
-
-        .news-main-display {
-            background: rgba(0,0,0,0.2);
-            padding: 12px 15px;
-            border-radius: 12px;
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            overflow: hidden;
-            position: relative;
-            cursor: pointer;
-        }
-
-        .news-content {
-            color: white;
-            font-size: 15px;
-            white-space: nowrap;
-            animation: scrollText 20s linear infinite;
-        }
-
-        @keyframes scrollText {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
-        }
-
-        /* 悬浮弹出列表 */
-        .news-list-popup {
-            position: absolute;
-            top: calc(100% + 10px);
-            left: 0;
-            right: 0;
-            background: rgba(15, 15, 30, 0.98);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 12px;
-            padding: 10px;
-            max-height: 280px;
-            backdrop-filter: blur(20px);
-            z-index: 100;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            display: none;
-            animation: fadeIn 0.3s ease;
-            /* 动态控制渐变遮罩 */
-            --top-opacity: 0;
-            --bottom-opacity: 1;
-        }
-
-        .news-ticker-container:hover .news-list-popup {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* 渐变遮罩 */
-        .news-list-popup .top-gradient {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 30px;
-            background: linear-gradient(to bottom, rgba(15,15,30,0.95), transparent);
-            border-radius: 12px 12px 0 0;
-            pointer-events: none;
-            z-index: 10;
-            opacity: var(--top-opacity);
-            transition: opacity 0.3s;
-        }
-
-        .news-list-popup .bottom-gradient {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 30px;
-            background: linear-gradient(to top, rgba(15,15,30,0.95), transparent);
-            border-radius: 0 0 12px 12px;
-            pointer-events: none;
-            z-index: 10;
-            opacity: var(--bottom-opacity);
-            transition: opacity 0.3s;
-        }
-
-        /* 列表滚动容器 */
-        .list-container {
-            max-height: 240px;
-            overflow-y: auto;
-            padding-right: 5px;
-        }
-
-        /* 单个新闻项动画 */
-        .news-item {
-            padding: 12px;
-            margin-bottom: 8px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 10px;
-            border: 1px solid transparent;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            /* 入场动画 */
-            opacity: 0;
-            transform: translateY(20px) scale(0.95);
-            animation: slideIn 0.3s ease forwards;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-
-        /* 逐个延迟动画 */
-        .news-item:nth-child(1) { animation-delay: 0.05s; }
-        .news-item:nth-child(2) { animation-delay: 0.1s; }
-        .news-item:nth-child(3) { animation-delay: 0.15s; }
-        .news-item:nth-child(4) { animation-delay: 0.2s; }
-        .news-item:nth-child(5) { animation-delay: 0.25s; }
-        .news-item:nth-child(6) { animation-delay: 0.3s; }
-        .news-item:nth-child(7) { animation-delay: 0.35s; }
-        .news-item:nth-child(8) { animation-delay: 0.4s; }
-        .news-item:nth-child(9) { animation-delay: 0.45s; }
-        .news-item:nth-child(10) { animation-delay: 0.5s; }
-        .news-item:nth-child(n+11) { animation-delay: 0.55s; }
-
-        @keyframes slideIn {
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        /* 选中态高亮 */
-        .news-item.selected {
-            background: rgba(106, 130, 251, 0.15);
-            border-color: rgba(106, 130, 251, 0.4);
-            box-shadow: 0 4px 15px rgba(106, 130, 251, 0.2);
-        }
-
-        /* 悬停效果 */
-        .news-item:hover {
-            background: rgba(255,255,255,0.08);
-            transform: translateX(5px);
-        }
-
-        .news-time {
-            font-size: 10px;
-            color: rgba(255,255,255,0.5);
-            flex-shrink: 0;
-            width: 36px;
-        }
-
-        .news-title {
-            flex-grow: 1;
-            font-size: 13px;
-            color: #ccc;
-        }
-
-        .close-btn {
-            color: #ff4d4d;
-            cursor: pointer;
-            font-weight: bold;
-            padding: 0 5px;
-            font-size: 16px;
-            flex-shrink: 0;
-            transition: color 0.2s;
-        }
-
-        .close-btn:hover { color: #fff; }
-
-        .empty-tip {
-            text-align: center;
-            color: rgba(255,255,255,0.4);
-            font-size: 13px;
-            padding: 20px 0;
-        }
-
-        /* ===== 中间上部：标题区 ===== */
-        .card-top-main {
-            grid-area: top-right;
-        }
-
-        .card-top-main h1 {
-            font-size: 42px;
-            line-height: 1.2;
-            margin-bottom: 12px;
-            color: #ffffff;
-        }
-
-        .card-top-main h1 span {
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            color: transparent;
-        }
-
-        .desc-text {
-            font-size: 15px;
-            opacity: 0.85;
-            line-height: 1.7;
-            max-width: 700px;
-            color: #e6edff;
-        }
-
-        /* ===== 中间下部：表格+日历 ===== */
-        .mid-double-wrap {
-            grid-area: mid-double;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .card-mid {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            height: 100%;
-        }
-
-        #online-spreadsheet {
-            width: 100%;
-            min-height: 340px;
-            height: 100%;
-            border-radius: 16px;
-            overflow: hidden;
-            background: #1a1a38;
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            margin-bottom: 14px;
-        }
-
-        .card-mid h4 {
-            color: #ffffff;
-            font-weight: 600;
-        }
-
-        .calendar-wrap {
-            width: 100%;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            border-radius: 16px;
-            min-height: 340px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .cal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            gap: 8px;
-        }
-
-        .cal-select-group {
-            display: flex;
-            gap: 6px;
-        }
-
-        .cal-select {
-            background: rgba(255, 255, 255, 0.16);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.26);
-            border-radius: 8px;
-            padding: 4px 6px;
-            font-size: 13px;
-        }
-
-        .cal-select option {
-            color: #111836;
-        }
-
-        .cal-btn {
-            width: 28px;
-            height: 28px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.16);
-            border: 1px solid rgba(255, 255, 255, 0.26);
-            color: #fff;
-            cursor: pointer;
-            font-size: 16px;
-            transition: 0.25s;
-        }
-
-        .cal-btn:hover {
-            background: rgba(255, 255, 255, 0.28);
-        }
-
-        .cal-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            flex: 1;
-        }
-
-        .cal-table tr {
-            height: 42px;
-        }
-
-        .cal-table th,
-        .cal-table td {
-            width: 14%;
-            height: 42px;
-            text-align: center;
-            border-radius: 8px;
-            color: #e6edff;
-        }
-
-        .cal-table th {
-            opacity: 0.65;
-            font-weight: 600;
-        }
-
-        .cal-table td {
-            opacity: 0.85;
-        }
-
-        .cal-today {
-            background: rgba(102, 126, 234, 0.2);
-            color: #b0c4ff;
-            font-weight: bold;
-        }
-
-        /* ===== 右下：全功能计算器 ===== */
-        .card-right-long {
-            grid-area: right-long;
-            padding: 18px !important;
-        }
-
-        .calc-title {
-            font-size: 14px;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .calculator {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .calc-display {
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            padding: 18px;
-            text-align: right;
-            font-size: 28px;
-            color: white;
-            min-height: 70px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            font-family: 'Courier New', monospace;
-            word-break: break-all;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .calc-buttons {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            flex-grow: 1;
-        }
-
-        .calc-btn {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            border-radius: 12px;
-            color: #ffffff;
-            font-size: 18px;
-            cursor: pointer;
-            transition: all 0.2s;
-            backdrop-filter: blur(5px);
-        }
-
-        .calc-btn:hover { 
-            background: rgba(255,255,255,0.2);
-            transform: translateY(-2px);
-        }
-
-        .calc-btn:active { transform: translateY(0); }
-
-        .calc-btn.operator { background: rgba(108, 99, 255, 0.3); }
-        .calc-btn.equals { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-        .calc-btn.clear { background: rgba(255, 77, 77, 0.3); color: #ff9999; }
-        .calc-btn.zero { grid-column: span 2; }
-
-        /* 滚动条美化 */
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb { background: #6a82fb; border-radius: 3px; }
-
-        /* 响应式适配 */
-        @media (max-width: 1200px) {
-            .page-wrap {
-                grid-template-columns: 220px 1fr;
-                grid-template-areas:
-                    "left top-right"
-                    "left stat"
-                    "left mid-double"
-                    "left right-long";
-                grid-template-rows: auto auto auto 1fr;
-            }
-            .mid-double-wrap { grid-template-columns: 1fr; }
-        }
-
-        @media (max-width: 768px) {
-            body { padding: 16px; }
-            .page-wrap {
-                grid-template-columns: 1fr;
-                grid-template-areas:
-                    "left"
-                    "top-right"
-                    "stat"
-                    "mid-double"
-                    "right-long";
-            }
-            .card-top-main h1 { font-size: 32px; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>控制台</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<style>
+* {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+font-family: "Microsoft Yahei", system-ui, sans-serif;
+}
+body {
+min-height: 100vh;
+padding: 24px;
+color: #ffffff;
+overflow: hidden; /* 页面整体禁止滚动，不会拉长屏幕 */
+position: relative;
+background: #0c0926;
+}
+#vanta-bg {
+position: fixed;
+top: 0;
+left: 0;
+width: 100vw;
+height: 100vh;
+z-index: -2;
+pointer-events: none;
+}
+.bg-overlay {
+position: fixed;
+top: 0;
+left: 0;
+width: 100vw;
+height: 100vh;
+z-index: -1;
+background: rgba(0, 0, 0, 0.12);
+pointer-events: none;
+}
+.page-wrap {
+display: grid;
+gap: 20px;
+grid-template-columns: 240px 1fr 260px;
+grid-template-rows: 1fr 1fr;
+grid-template-areas:
+"left top-right stat"
+"left mid-double right-long";
+width: 100%;
+height: calc(100vh - 48px);
+max-width: 1600px;
+margin: 0 auto;
+position: relative;
+z-index: 1;
+}
+.card {
+background: rgba(40, 35, 55, 0.65);
+backdrop-filter: blur(20px);
+-webkit-backdrop-filter: blur(20px);
+border-radius: 24px;
+border: 1px solid rgba(255, 255, 255, 0.12);
+padding: 22px;
+box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+display: flex;
+flex-direction: column;
+overflow: hidden;
+width: 100%;
+height: 100%;
+}
+/* 左侧栏 */
+.card-left {
+grid-area: left;
+display: flex;
+flex-direction: column;
+padding: 26px 16px;
+gap: 40px;
+}
+.time-box {
+text-align: center;
+}
+.time-text {
+font-size: 30px;
+font-weight: bold;
+font-family: 'Courier New', monospace;
+letter-spacing: 2px;
+}
+.date-text {
+font-size: 14px;
+margin-top: 6px;
+opacity: 0.75;
+}
+.menu-container {
+flex: 1;
+display: flex;
+flex-direction: column;
+justify-content: center;
+gap: 16px;
+margin-top: 60px;
+}
+.sidebar-menu-item {
+width: 100%;
+text-align: center;
+font-size: 15px;
+padding: 14px 0;
+border-radius: 18px;
+cursor: pointer;
+transition: 0.24s ease;
+color: rgba(255,255,255,0.85);
+background: rgba(60, 52, 80, 0.55);
+border: 1px solid rgba(255,255,255,0.16);
+}
+.sidebar-menu-item:hover {
+background: rgba(102, 126, 234, 0.22);
+border-color: rgba(102, 126, 234, 0.45);
+color: #fff;
+transform: translateY(-2px);
+}
+/* 右上新闻 */
+.card-stat {
+grid-area: stat;
+}
+.news-ticker-container {
+height: 100%;
+display: flex;
+flex-direction: column;
+gap: 12px;
+width: 100%;
+}
+.news-header {
+font-size: 14px;
+color: rgba(255,255,255,0.7);
+display: flex;
+align-items: center;
+gap: 6px;
+}
+.live-badge {
+background: #ff4499;
+color: white;
+padding: 2px 8px;
+border-radius: 4px;
+font-size: 10px;
+animation: pulse 1.5s infinite;
+}
+@keyframes pulse {0%{opacity:1}50%{opacity:0.6}100%{opacity:1}}
+.news-main-display {
+background: rgba(0,0,0,0.2);
+padding: 12px 15px;
+border-radius: 12px;
+width: 100%;
+flex: 1;
+display: flex;
+align-items: center;
+cursor: pointer;
+overflow: hidden;
+}
+.news-content {
+color: white;
+font-size: 15px;
+white-space: nowrap;
+animation: scrollText 20s linear infinite;
+}
+@keyframes scrollText {0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+.news-list-popup {
+position: relative;
+margin-top: 10px;
+background: rgba(15, 15, 30, 0.98);
+border: 1px solid rgba(255,255,255,0.15);
+border-radius: 12px;
+padding: 10px;
+max-height: 280px;
+width: 100%;
+}
+.list-container {
+max-height: 240px;
+overflow-y: auto;
+padding-right: 5px;
+}
+.news-item {
+padding: 12px;
+margin-bottom: 8px;
+background: rgba(255,255,255,0.03);
+border-radius: 10px;
+display: flex;
+align-items: center;
+gap: 12px;
+cursor: pointer;
+transition: 0.2s;
+}
+.news-item:hover {background: rgba(255,255,255,0.08);transform: translateX(5px);}
+.news-time {font-size:10px;color:rgba(255,255,0.5);width:36px;flex-shrink:0}
+.news-title {flex:1;font-size:13px;color:#ccc}
+.close-btn {color:#ff4d4d;font-weight:bold;cursor:pointer}
+.empty-tip {text-align:center;color:rgba(255,255,0.4);padding:20px 0;font-size:13px}
+/* 顶部标题 */
+.card-top-main {grid-area: top-right;}
+.card-top-main h1 {font-size:42px;margin-bottom:12px;color:#fff}
+.card-top-main h1 span {background:linear-gradient(90deg,#667eea,#764ba2);-webkit-background-clip:text;color:transparent}
+.desc-text {font-size:15px;opacity:0.85;color:#e6edff;line-height:1.7}
+/* 中间双栏 */
+.mid-double-wrap {
+grid-area: mid-double;
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 20px;
+width: 100%;
+height: 100%;
+}
+.card-mid {
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: flex-start;
+height: 100%;
+width: 100%;
+}
+/* 待办核心：限制最多5条高度，超出滚动 */
+.todo-card-wrap {
+width: 100%;
+height: 100%;
+padding: 18px;
+}
+.todo-header {
+width: 100%;
+text-align: center;
+margin-bottom: 16px;
+}
+.todo-title {
+font-size: 18px;
+font-weight: 600;
+}
+.todo-input-box {
+display: flex;
+gap: 8px;
+width: 100%;
+margin-bottom: 18px;
+}
+.todo-input {
+flex: 1;
+padding: 9px 12px;
+border-radius: 10px;
+border: 1px solid rgba(255,255,255,0.2);
+background: rgba(255,255,255,0.08);
+color: #fff;
+outline: none;
+font-size: 14px;
+}
+.todo-input::placeholder{
+color:rgba(255,255,255,0.45);
+}
+.todo-add-btn {
+padding: 0 16px;
+border-radius: 10px;
+border: 1px solid rgba(255,255,255,0.2);
+background: rgba(102, 126, 234, 0.3);
+color: #fff;
+cursor: pointer;
+transition: 0.2s;
+}
+.todo-add-btn:hover{
+background: rgba(102, 126, 234, 0.5);
+}
+/* 每条item高度固定52px，5条=260px，超过滚动 */
+.todo-list-box {
+width:100%;
+max-height: 260px;
+overflow-y:auto;
+flex:1;
+}
+.todo-item {
+display:flex;
+align-items:center;
+gap:10px;
+padding:10px 12px;
+background:rgba(255,255,255,0.06);
+border-radius:10px;
+margin-bottom:8px;
+height: 52px;
+}
+.todo-text-wrap{
+display:flex;
+align-items:center;
+gap:8px;
+flex:1;
+}
+.todo-text {
+font-size: 14px;
+color: #fff;
+}
+.todo-text.done{
+text-decoration: line-through;
+opacity:0.45;
+}
+.todo-date{
+font-size:11px;
+color:rgba(255,255,255,0.4);
+}
+.todo-delete{
+color:#ff7777;
+cursor:pointer;
+width:24px;
+height:24px;
+display:flex;
+align-items:center;
+justify-content:center;
+}
+/* 日历 */
+.calendar-wrap {
+width: 100%;
+padding: 12px;
+background: rgba(255, 255, 255, 0.08);
+border: 1px solid rgba(255, 255, 0.22);
+border-radius: 16px;
+min-height: 340px;
+display: flex;
+flex-direction: column;
+flex: 1;
+}
+.cal-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 12px;
+gap: 8px;
+}
+.cal-select-group {
+display: flex;
+gap: 6px;
+}
+.cal-select {
+background: rgba(255, 255, 0.16);
+color: #fff;
+border: 1px solid rgba(255, 255, 0.26);
+border-radius: 8px;
+padding: 4px 6px;
+font-size: 13px;
+}
+.cal-select option {
+color: #111836;
+}
+.cal-btn {
+width: 28px;
+height: 28px;
+border-radius: 8px;
+background: rgba(255, 255, 0.16);
+border: 1px solid rgba(255, 255, 0.26);
+color: #fff;
+cursor: pointer;
+font-size: 16px;
+transition: 0.25s;
+}
+.cal-btn:hover {
+background: rgba(255, 255, 0.28);
+}
+.cal-table {
+width: 100%;
+border-collapse: collapse;
+font-size: 13px;
+flex: 1;
+}
+.cal-table tr {
+height: 42px;
+}
+.cal-table th,
+.cal-table td {
+width: 14%;
+height: 42px;
+text-align: center;
+border-radius: 8px;
+color: #e6edff;
+}
+.cal-table th {
+opacity: 0.65;
+font-weight: 600;
+}
+.cal-table td {
+opacity: 0.85;
+}
+.cal-today {
+background: rgba(102, 126, 234, 0.2);
+color: #b0c4ff;
+font-weight: bold;
+}
+/* 计算器 */
+.card-right-long {
+grid-area: right-long;
+}
+.calc-title {
+font-size: 14px;
+color: rgba(255,255,255,0.7);
+margin-bottom: 15px;
+display: flex;
+align-items: center;
+gap: 6px;
+}
+.calculator {
+flex-grow: 1;
+display: flex;
+flex-direction: column;
+gap: 15px;
+height: 100%;
+}
+.calc-display {
+background: rgba(0,0,0,0.3);
+border-radius: 12px;
+padding: 18px;
+text-align: right;
+font-size: 28px;
+color: white;
+min-height: 70px;
+display: flex;
+align-items: center;
+justify-content: flex-end;
+font-family: 'Courier New', monospace;
+word-break: break-all;
+border: 1px solid rgba(255,255,255,0.1);
+}
+.calc-buttons {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 10px;
+flex-grow: 1;
+}
+.calc-btn {
+background: rgba(255,255,255,0.1);
+border: none;
+border-radius: 12px;
+color: #ffffff;
+font-size: 18px;
+cursor: pointer;
+transition: all 0.2s;
+backdrop-filter: blur(5px);
+}
+.calc-btn:hover {
+background: rgba(255,255,255,0.2);
+transform: translateY(-2px);
+}
+.calc-btn:active { transform: translateY(0); }
+.calc-btn.operator { background: rgba(108, 99, 255, 0.3); }
+.calc-btn.equals { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.calc-btn.clear { background: rgba(255, 77, 0.3); color: #ff9999; }
+.calc-btn.zero { grid-column: span 2; }
+/* 滚动条美化 */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #6a82fb; border-radius: 3px; }
+/* 响应式 */
+@media (max-width: 1200px) {
+.page-wrap {
+grid-template-columns: 220px 1fr;
+grid-template-rows: auto 1fr auto 1fr;
+grid-template-areas:
+"left top-right"
+"left mid-double"
+"left stat"
+"left right-long";
+height: auto;
+min-height: 100vh;
+overflow: auto;
+}
+}
+@media (max-width: 768px) {
+.page-wrap {
+grid-template-columns: 1fr;
+grid-template-rows: auto auto auto auto;
+grid-template-areas:
+"left"
+"top-right"
+"stat"
+"mid-double"
+"right-long";
+height: auto;
+min-height: 100vh;
+overflow: auto;
+}
+}
+</style>
 </head>
 <body>
-    <div id="vanta-bg"></div>
-    <div class="bg-overlay"></div>
-
-    <div id="app" class="page-wrap">
-        <!-- 左侧栏 -->
-        <div class="card card-left">
-            <div class="clock-box">
-                <div class="clock-time">{{ currentTime }}</div>
-                <div class="clock-date">{{ currentDate }}</div>
-            </div>
-
-            <div style="width: 80%; height: 1px; background: rgba(255,255,255,0.1); margin: 5px 0;"></div>
-
-            <div class="entry-card">
-                <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-                卖家后台
-            </div>
-            <div class="entry-card">
-                <svg viewBox="0 0 24 24"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
-                ERP系统
-            </div>
-            <div class="entry-card">
-                <svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
-                数据看板
-            </div>
-
-            <!-- 左侧底部状态卡片 -->
-            <div class="glass-footer">
-                <div class="footer-header">
-                    <span>🌐</span> 全球站点状态
-                </div>
-                <div class="status-list">
-                    <div class="status-item">
-                        <span class="dot online"></span>
-                        <span>美站运行中</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="dot warning"></span>
-                        <span>欧站待审核</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="dot offline"></span>
-                        <span>英站休息中</span>
-                    </div>
-                </div>
-                <div class="footer-tip">最后更新: {{ updateTime }}</div>
-            </div>
-        </div>
-
-        <!-- 右上：动画新闻速递 -->
-        <div class="card card-stat">
-            <div class="news-ticker-container">
-                <div class="news-header">
-                    <span>📰</span> 全球新闻速递
-                    <span class="live-badge">LIVE</span>
-                </div>
-                <div class="news-main-display">
-                    <div class="news-content">{{ currentNews.title }}</div>
-                </div>
-                <!-- 悬浮弹出列表 -->
-                <div class="news-list-popup" ref="newsPopup">
-                    <div class="top-gradient"></div>
-                    <div class="list-container" ref="newsList" @scroll="handleNewsScroll">
-                        <div v-if="newsList.length === 0" class="empty-tip">暂无新闻</div>
-                        <div 
-                            v-for="(item, index) in newsList" 
-                            :key="index" 
-                            class="news-item"
-                            :class="{ 'selected': selectedIndex === index }"
-                            @mouseenter="selectedIndex = index"
-                            @click.stop="removeNews(index)"
-                        >
-                            <span class="news-time">{{ item.time }}</span>
-                            <span class="news-title">{{ item.title }}</span>
-                            <span class="close-btn">×</span>
-                        </div>
-                    </div>
-                    <div class="bottom-gradient"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 中间上部：标题区 -->
-        <div class="card card-top-main">
-            <div style="font-size:13px;opacity:0.7;margin-bottom:8px;">正在构建全球化电商帝国</div>
-            <h1>Hello, I'm <span>Handsome gentleman</span></h1>
-            <p class="desc-text">希音运营专属控制台 · 实时数据同步中</p>
-        </div>
-
-        <!-- 中间下部：表格+日历 -->
-        <div class="mid-double-wrap">
-            <div class="card card-mid">
-                <div id="online-spreadsheet"></div>
-                <h4>在线表格（可编辑）</h4>
-            </div>
-            <div class="card card-mid">
-                <div class="calendar-wrap">
-                    <div class="cal-header">
-                        <button class="cal-btn" id="prevMonth">&lt;</button>
-                        <div class="cal-select-group">
-                            <select class="cal-select" id="yearSelect"></select>
-                            <select class="cal-select" id="monthSelect"></select>
-                        </div>
-                        <button class="cal-btn" id="nextMonth">&gt;</button>
-                    </div>
-                    <table class="cal-table">
-                        <tr>
-                            <th>一</th>
-                            <th>二</th>
-                            <th>三</th>
-                            <th>四</th>
-                            <th>五</th>
-                            <th>六</th>
-                            <th>日</th>
-                        </tr>
-                        <tbody id="calBody"></tbody>
-                    </table>
-                </div>
-                <h4 style="margin-top:14px;">日历</h4>
-            </div>
-        </div>
-
-        <!-- 右下：全功能计算器 -->
-        <div class="card card-right-long">
-            <div class="calc-title">
-                <span>🧮</span> 全功能计算器
-            </div>
-            <div class="calculator">
-                <div class="calc-display">{{ displayValue }}</div>
-                <div class="calc-buttons">
-                    <button class="calc-btn clear" @click="clearDisplay">C</button>
-                    <button class="calc-btn" @click="appendInput('(')">(</button>
-                    <button class="calc-btn" @click="appendInput(')')">)</button>
-                    <button class="calc-btn operator" @click="appendInput('/')">÷</button>
-                    
-                    <button class="calc-btn" @click="appendInput('7')">7</button>
-                    <button class="calc-btn" @click="appendInput('8')">8</button>
-                    <button class="calc-btn" @click="appendInput('9')">9</button>
-                    <button class="calc-btn operator" @click="appendInput('*')">×</button>
-                    
-                    <button class="calc-btn" @click="appendInput('4')">4</button>
-                    <button class="calc-btn" @click="appendInput('5')">5</button>
-                    <button class="calc-btn" @click="appendInput('6')">6</button>
-                    <button class="calc-btn operator" @click="appendInput('-')">-</button>
-                    
-                    <button class="calc-btn" @click="appendInput('1')">1</button>
-                    <button class="calc-btn" @click="appendInput('2')">2</button>
-                    <button class="calc-btn" @click="appendInput('3')">3</button>
-                    <button class="calc-btn operator" @click="appendInput('+')">+</button>
-                    
-                    <button class="calc-btn zero" @click="appendInput('0')">0</button>
-                    <button class="calc-btn" @click="appendInput('.')">.</button>
-                    <button class="calc-btn equals" @click="calculateResult">=</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
+<div id="vanta-bg"></div>
+<div class="bg-overlay"></div>
+<div id="app" class="page-wrap">
+<!-- 左侧 -->
+<div class="card card-left">
+<div class="time-box">
+<div class="time-text">{{ currentTime }}</div>
+<div class="date-text">{{ currentDate }}</div>
+</div>
+<div class="menu-container">
+<div class="sidebar-menu-item">功能1</div>
+<div class="sidebar-menu-item">功能2</div>
+<div class="sidebar-menu-item">功能3</div>
+<div class="sidebar-menu-item">功能4</div>
+<div class="sidebar-menu-item">功能5</div>
+</div>
+</div>
+<!-- 右上新闻 -->
+<div class="card card-stat">
+<div class="news-ticker-container">
+<div class="news-header"><span>📰</span> 全球新闻速递 <span class="live-badge">LIVE</span></div>
+<div class="news-main-display"><div class="news-content">{{ currentNews.title }}</div></div>
+<div class="news-list-popup" ref="newsPopup">
+<div class="list-container" ref="newsList">
+<div v-if="newsList.length===0" class="empty-tip">暂无新闻</div>
+<div v-for="(item,i) in newsList" :key="i" class="news-item" @click="removeNews(i)">
+<span class="news-time">{{ item.time }}</span>
+<span class="news-title">{{ item.title }}</span>
+<span class="close-btn">×</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- 顶部标题 -->
+<div class="card card-top-main">
+<div style="font-size:13px;opacity:0.7;margin-bottom:8px;">代码构建网页帝国</div>
+<h1>Hello, I'm <span>Handsome gentleman</span></h1>
+<p class="desc-text">数据开发中</p>
+</div>
+<!-- 中间：待办+日历 -->
+<div class="mid-double-wrap">
+<div class="card card-mid todo-card-wrap">
+<div class="todo-header">
+<span class="todo-title">待办事项</span>
+</div>
+<div class="todo-input-box">
+<input class="todo-input" placeholder="添加任务" v-model="newTodoText" @keyup.enter="addTodo">
+<button class="todo-add-btn" @click="addTodo">添加</button>
+</div>
+<div class="todo-list-box">
+<div class="todo-item" v-for="(item,idx) in todoList" :key="idx">
+<input type="checkbox" v-model="item.done">
+<div class="todo-text-wrap">
+<span class="todo-text" :class="{done:item.done}">{{item.text}}</span>
+<span class="todo-date">{{ getRelativeDate(item.createTime) }}</span>
+</div>
+<span class="todo-delete" @click="todoList.splice(idx,1)">×</span>
+</div>
+</div>
+</div>
+<div class="card card-mid">
+<div class="calendar-wrap">
+<div class="cal-header">
+<button class="cal-btn" id="prevMonth">&lt;</button>
+<div class="cal-select-group">
+<select class="cal-select" id="yearSelect"></select>
+<select class="cal-select" id="monthSelect"></select>
+</div>
+<button class="cal-btn" id="nextMonth">&gt;</button>
+</div>
+<table class="cal-table">
+<tr><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th></tr>
+<tbody id="calBody"></tbody>
+</table>
+</div>
+<h4 style="margin-top:14px;text-align:center">日历</h4>
+</div>
+</div>
+<!-- 计算器 -->
+<div class="card card-right-long">
+<div class="calc-title">
+<span>🧮</span> 全功能计算器
+</div>
+<div class="calculator">
+<div class="calc-display">{{ displayValue }}</div>
+<div class="calc-buttons">
+<button class="calc-btn clear" @click="clearDisplay">C</button>
+<button class="calc-btn" @click="appendInput('(')">(</button>
+<button class="calc-btn" @click="appendInput(')')">)</button>
+<button class="calc-btn operator" @click="appendInput('/')">÷</button>
+<button class="calc-btn" @click="appendInput('7')">7</button>
+<button class="calc-btn" @click="appendInput('8')">8</button>
+<button class="calc-btn" @click="appendInput('9')">9</button>
+<button class="calc-btn operator" @click="appendInput('*')">×</button>
+<button class="calc-btn" @click="appendInput('4')">4</button>
+<button class="calc-btn" @click="appendInput('5')">5</button>
+<button class="calc-btn" @click="appendInput('6')">6</button>
+<button class="calc-btn operator" @click="appendInput('-')">-</button>
+<button class="calc-btn" @click="appendInput('1')">1</button>
+<button class="calc-btn" @click="appendInput('2')">2</button>
+<button class="calc-btn" @click="appendInput('3')">3</button>
+<button class="calc-btn operator" @click="appendInput('+')">+</button>
+<button class="calc-btn zero" @click="appendInput('0')">0</button>
+<button class="calc-btn" @click="appendInput('.')">.</button>
+<button class="calc-btn equals" @click="calculateResult">=</button>
+</div>
+</div>
+</div>
+</div>
 <script>
-// ===== Vue实例：管理所有动态交互 =====
 new Vue({
-    el: '#app',
-    data: {
-        currentTime: '',
-        currentDate: '',
-        updateTime: '刚刚',
-        displayValue: '0',
-        selectedIndex: -1, // 当前选中的新闻索引
-        newsList: [
-            { title: '美联储维持利率不变，跨境物流成本有望回落', time: '10:30' },
-            { title: '欧盟通过跨境电商新规，SHEIN欧洲站合规提示', time: '09:15' },
-            { title: '美国站夏季大促GMV同比增长42%，爆款榜单更新', time: '08:40' },
-            { title: '人民币汇率波动预警，建议锁定近期结汇汇率', time: '昨天' },
-            { title: '新型AI选品工具上线，支持多站点销量预测', time: '昨天' },
-            { title: '英国站VAT税率调整，后台申报入口已更新', time: '07-20' },
-            { title: '全球港口拥堵指数下降，美西航线时效缩短3天', time: '07-19' },
-            { title: '巴西税务合规计划推进，拉美市场迎来利好', time: '07-18' },
-            { title: '中东站点斋月营销节点公布，备货指南发布', time: '07-17' },
-            { title: '澳洲站物流运费下调，中小卖家利润空间提升', time: '07-16' }
-        ],
-        currentNewsIndex: 0
-    },
-    computed: {
-        currentNews() {
-            return this.newsList[this.currentNewsIndex] || { title: '暂无最新消息', time: '' };
-        }
-    },
-    mounted() {
-        // 初始化时间
-        this.updateTime();
-        setInterval(this.updateTime, 1000);
-        
-        // 新闻自动轮播（每8秒切换一条，加快节奏）
-        setInterval(() => {
-            if (this.newsList.length > 0) {
-                this.currentNewsIndex = (this.currentNewsIndex + 1) % this.newsList.length;
-            }
-        }, 8000);
-
-        // 键盘导航支持
-        document.addEventListener('keydown', (e) => {
-            // 只在新闻列表弹出时生效
-            const popup = this.$refs.newsPopup;
-            if (!popup || window.getComputedStyle(popup).display !== 'block') return;
-            
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                this.selectedIndex = Math.min(this.selectedIndex + 1, this.newsList.length - 1);
-                this.scrollToSelected();
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
-                this.scrollToSelected();
-            } else if (e.key === 'Enter' && this.selectedIndex >= 0) {
-                e.preventDefault();
-                this.removeNews(this.selectedIndex);
-            }
-        });
-    },
-    methods: {
-        // 时间更新
-        updateTime() {
-            const now = new Date();
-            const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-            const beijing = new Date(utc + 8 * 3600000);
-            
-            this.currentTime = `${String(beijing.getHours()).padStart(2, '0')}:${String(beijing.getMinutes()).padStart(2, '0')}:${String(beijing.getSeconds()).padStart(2, '0')}`;
-            this.currentDate = `${beijing.getFullYear()}/${String(beijing.getMonth() + 1).padStart(2, '0')}/${String(beijing.getDate()).padStart(2, '0')}`;
-            this.updateTime = `${String(beijing.getHours()).padStart(2, '0')}:${String(beijing.getMinutes()).padStart(2, '0')}`;
-        },
-        
-        // 计算器方法
-        appendInput(value) {
-            if (this.displayValue === '0' && value !== '.') {
-                this.displayValue = value;
-            } else {
-                this.displayValue += value;
-            }
-        },
-        clearDisplay() {
-            this.displayValue = '0';
-        },
-        calculateResult() {
-            try {
-                let expression = this.displayValue.replace(/×/g, '*').replace(/÷/g, '/');
-                if (!/^[0-9+\-*/(). ]+$/.test(expression)) {
-                    this.displayValue = '格式错误';
-                    return;
-                }
-                const result = eval(expression);
-                this.displayValue = Number.isInteger(result) ? result.toString() : result.toFixed(2);
-            } catch (e) {
-                this.displayValue = '计算错误';
-            }
-        },
-        
-        // 新闻删除方法
-        removeNews(index) {
-            this.newsList.splice(index, 1);
-            // 调整选中索引，避免越界
-            if (this.selectedIndex >= this.newsList.length) {
-                this.selectedIndex = Math.max(0, this.newsList.length - 1);
-            }
-            // 调整当前轮播的新闻索引
-            if (this.currentNewsIndex >= this.newsList.length) {
-                this.currentNewsIndex = Math.max(0, this.newsList.length - 1);
-            }
-        },
-
-        // 处理新闻列表滚动，更新渐变遮罩透明度
-        handleNewsScroll(e) {
-            const { scrollTop, scrollHeight, clientHeight } = e.target;
-            const popup = this.$refs.newsPopup;
-            if (!popup) return;
-            
-            // 顶部渐变：滚动超过50px时逐渐显示
-            popup.style.setProperty('--top-opacity', Math.min(scrollTop / 50, 1));
-            // 底部渐变：距离底部小于50px时逐渐隐藏
-            const bottomDistance = scrollHeight - (scrollTop + clientHeight);
-            popup.style.setProperty('--bottom-opacity', Math.min(bottomDistance / 50, 1));
-        },
-        
-        // 滚动到选中的新闻项
-        scrollToSelected() {
-            this.$nextTick(() => {
-                const container = this.$refs.newsList;
-                const selectedItem = container?.children[this.selectedIndex];
-                if (selectedItem) {
-                    selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
-            });
-        }
-    }
-});
-
-// ===== Vanta粒子背景 =====
-function setVanta() {
-    if (window.VANTA) {
-        window.VANTA.NET({
-            el: "#vanta-bg",
-            mouseControls: true,
-            touchControls: true,
-            gyroControls: false,
-            minHeight: 200.00,
-            minWidth: 200.00,
-            scale: 1.00,
-            scaleMobile: 1.00,
-            points: 11.00,
-            maxDistance: 28.00,
-            spacing: 14.00,
-            color: 0xff4499,
-            backgroundColor: 0x0c0926
-        });
-    }
+el:'#app',
+data(){
+return {
+currentTime:'00:00:00',
+currentDate:'0000-00-00',
+displayValue:'0',
+selectedIndex:-1,
+newsList:[
+{title:'王哥真帅',time:'10:30'},
+{title:'王哥就是神',time:'09:15'},
+{title:'王哥好厉害厉害',time:'08:40'},
+{title:'最强的王哥',time:'昨天'},
+{title:'王哥想下班',time:'昨天'}
+],
+currentNewsIndex:0,
+newTodoText:'',
+todoList:JSON.parse(localStorage.getItem("todoData"))||[]
 }
-window.addEventListener("load", setVanta);
-window.addEventListener("resize", setVanta);
-
-// ===== 在线表格初始化 =====
-window.addEventListener('load', () => {
-    new xspreadsheet('#online-spreadsheet', {
-        toolbar: true,
-        showGrid: true,
-        data: [
-            ['商品SKU', '站点', '昨日销量', '昨日销售额', '利润率'],
-            ['SH-2024-001', '美国站', '127', '$3,810', '28.5%'],
-            ['SH-2024-002', '欧洲站', '89', '$2,670', '25.2%'],
-            ['SH-2024-003', '英国站', '56', '$1,680', '22.8%'],
-            ['', '', '', '', '']
-        ]
-    });
-});
-
-// ===== 日历逻辑 =====
-const nowDate = new Date();
-let currentYear = nowDate.getFullYear();
-let currentMonth = nowDate.getMonth();
-const todayY = nowDate.getFullYear();
-const todayM = nowDate.getMonth();
-const todayD = nowDate.getDate();
-const MIN_YEAR = currentYear - 3;
-const MAX_YEAR = currentYear + 3;
-
-const yearSelect = document.getElementById("yearSelect");
-const monthSelect = document.getElementById("monthSelect");
-const calBody = document.getElementById("calBody");
-const prevBtn = document.getElementById("prevMonth");
-const nextBtn = document.getElementById("nextMonth");
-
-function initYearOptions() {
-    yearSelect.innerHTML = "";
-    for (let y = MIN_YEAR; y <= MAX_YEAR; y++) {
-        const opt = document.createElement("option");
-        opt.value = y;
-        opt.textContent = y + "年";
-        yearSelect.appendChild(opt);
-    }
-    yearSelect.value = currentYear;
+},
+watch:{
+todoList:{deep:true,handler(v){localStorage.setItem("todoData",JSON.stringify(v))}}
+},
+computed:{
+currentNews(){return this.newsList[this.currentNewsIndex]||{title:'暂无',time:''}}
+},
+mounted(){
+this.updateTime();
+setInterval(this.updateTime,1000);
+setInterval(()=>{
+if(this.newsList.length) this.currentNews=(this.currentNewsIndex+1)%this.newsList.length
+},8000)
+},
+methods:{
+updateTime(){
+const d=new Date();
+const h=String(d.getHours()).padStart(2,'0');
+const m=String(d.getMinutes()).padStart(2,'0');
+const s=String(d.getSeconds()).padStart(2,'0');
+const y=d.getFullYear();
+const mon=String(d.getMonth()+1).padStart(2,'0');
+const day=String(d.getDate()).padStart(2,'0');
+this.currentTime=`${h}:${m}:${s}`;
+this.currentDate=`${y}-${mon}-${day}`;
+},
+appendInput(val){
+if(this.displayValue==='0'&&val!=='.') this.displayValue=val;
+else this.displayValue+=val;
+},
+clearDisplay(){this.displayValue='0'},
+calculateResult(){
+try{
+let exp=this.displayValue.replace(/×/g,'*').replace(/÷/g,'/');
+if(!/^[0-9+\-*/(). ]+$/.test(exp)){this.displayValue='格式错误';return}
+const res=eval(exp);
+this.displayValue=Number.isInteger(res)?res.toString():res.toFixed(2);
+}catch{this.displayValue='计算错误'}
+},
+removeNews(i){this.newsList.splice(i,1)},
+addTodo(){
+const val=this.newTodoText.trim();
+if(!val)return;
+this.todoList.push({text:val,done:false,createTime:Date.now()});
+this.newTodoText='';
+},
+getRelativeDate(ts){
+const now=new Date();
+const create=new Date(ts);
+const nowDay=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+const createDay=new Date(create.getFullYear(),create.getMonth(),create.getDate()).getTime();
+const diff=Math.round((nowDay-createDay)/(1000*60*60*24));
+if(diff===0)return'今天';
+if(diff===1)return'昨天';
+if(diff===2)return'前天';
+return `${create.getFullYear()}-${String(create.getMonth()+1).padStart(2,"0")}-${String(create.getDate()).padStart(2,"0")}`;
 }
-
-function initMonthOptions() {
-    monthSelect.innerHTML = "";
-    for (let m = 0; m < 12; m++) {
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = (m + 1) + "月";
-        monthSelect.appendChild(opt);
-    }
-    monthSelect.value = currentMonth;
 }
-
-function renderCalendar() {
-    yearSelect.value = currentYear;
-    monthSelect.value = currentMonth;
-    calBody.innerHTML = "";
-
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
-    const totalDays = lastDay.getDate();
-
-    let weekStart = firstDay.getDay() - 1;
-    if (weekStart === -1) weekStart = 6;
-
-    let row = document.createElement("tr");
-    for (let i = 0; i < weekStart; i++) row.appendChild(document.createElement("td"));
-
-    for (let d = 1; d <= totalDays; d++) {
-        const td = document.createElement("td");
-        td.textContent = d;
-        if (currentYear === todayY && currentMonth === todayM && d === todayD) {
-            td.classList.add("cal-today");
-        }
-        row.appendChild(td);
-        if ((weekStart + d) % 7 === 0) {
-            calBody.appendChild(row);
-            row = document.createElement("tr");
-        }
-    }
-    if (row.children.length > 0) calBody.appendChild(row);
+})
+// Vanta粒子背景
+function setVanta(){
+if(window.VANTA){
+VANTA.NET({
+el:"#vanta-bg",
+mouseControls:true,touchControls:true,gyroControls:false,
+minHeight:200,minWidth:200,scale:1,points:11,maxDistance:28,spacing:14,
+color:0xff4499,background:0x0c0926
+})
 }
-
-prevBtn.addEventListener("click", () => {
-    if (currentYear === MIN_YEAR && currentMonth === 0) return;
-    currentMonth--;
-    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-    renderCalendar();
-});
-
-nextBtn.addEventListener("click", () => {
-    if (currentYear === MAX_YEAR && currentMonth === 11) return;
-    currentMonth++;
-    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-    renderCalendar();
-});
-
-yearSelect.addEventListener("change", () => {
-    currentYear = Number(yearSelect.value);
-    renderCalendar();
-});
-
-monthSelect.addEventListener("change", () => {
-    currentMonth = Number(monthSelect.value);
-    renderCalendar();
-});
-
-initYearOptions();
-initMonthOptions();
-renderCalendar();
+}
+window.addEventListener('load',setVanta);
+window.addEventListener('resize',setVanta);
+// 日历逻辑
+const nowDate=new Date();
+let cy=nowDate.getFullYear(),cm=nowDate.getMonth();
+const ty=nowDate.getFullYear(),tm=nowDate.getMonth(),td=nowDate.getDate();
+const minY=cy-3,maxY=cy+3;
+const yearSel=document.getElementById("yearSelect");
+const monSel=document.getElementById("monthSelect");
+const calBody=document.getElementById("calBody");
+const prevBtn=document.getElementById("prevMonth");
+const nextBtn=document.getElementById("nextMonth");
+function initYear(){
+yearSel.innerHTML='';
+for(let y=minY;y<=maxY;y++){
+const o=document.createElement("option");o.value=y;o.textContent=y+'年';yearSel.appendChild(o);
+}
+yearSel.value=cy;
+}
+function initMon(){
+monSel.innerHTML='';
+for(let m=0;m<12;m++){
+const o=document.createElement("option");o.value=m;o.textContent=(m+1)+'月';monSel.appendChild(o);
+}
+monSel.value=cm;
+}
+function renderCal(){
+yearSel.value=cy;
+monSel.value=calBody.innerHTML='';
+const first=new Date(cy,cm,1);
+const last=new Date(cy,cm+1,0);
+const total=last.getDate();
+let start=first.getDay()-1;
+if(start===-1)start=6;
+let tr=document.createElement("tr");
+for(let i=0;i<start;i++)tr.appendChild(document.createElement("td"));
+for(let d=1;d<=total;d++){
+const td=document.createElement("td");
+td.textContent=d;
+if(cy===ty&&cm===tm&&d===td)td.classList.add("cal-today");
+tr.appendChild(td);
+if((start+d)%7===0){calBody.appendChild(tr);tr=document.createElement("tr")}
+}
+if(tr.children.length>0)calBody.appendChild(tr);
+}
+initYear();initMon();renderCal();
+prevBtn.onclick=()=>{if(cm===0){cy--;cm=11}else cm--;renderCal()};
+nextBtn.onclick=()=>{if(cm===11){cy++;cm=0}else cm++;renderCal()};
+yearSel.onchange=()=>{cy=Number(yearSel.value);renderCal()};
+monSel.onchange=()=>{cm=Number(monSel.value);renderCal()};
 </script>
 </body>
 </html>
